@@ -445,6 +445,11 @@ class BluetoothCentralManager(private val context: Context) {
                     override fun onConnectionFailed(peripheral: BluetoothPeripheral, status: HciStatus) {
                         it.resumeWithException(ConnectionFailedException(status))
                     }
+
+                    override fun onDisconnectedPeripheral(peripheral: BluetoothPeripheral, status: HciStatus) {
+                        it.resumeWithException(ConnectionFailedException(status))
+                    }
+
                 })
             } catch (failedException: ConnectionFailedException) {
                 it.resumeWithException(failedException)
