@@ -99,7 +99,7 @@ class BluetoothPeripheral internal constructor(
             state = newState
 
             val hciStatus = HciStatus.fromValue(status)
-            if (hciStatus == HciStatus.SUCCESS) {
+            if (gatt == null || hciStatus == HciStatus.SUCCESS) {
                 when (newState) {
                     BluetoothProfile.STATE_CONNECTED -> successfullyConnected()
                     BluetoothProfile.STATE_DISCONNECTED -> successfullyDisconnected(previousState)
