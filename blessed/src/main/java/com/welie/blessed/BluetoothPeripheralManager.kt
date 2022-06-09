@@ -43,12 +43,9 @@ import java.util.concurrent.ConcurrentLinkedQueue
  * This class represent a peripheral running on the local phone
  */
 class BluetoothPeripheralManager(private val context: Context, private val bluetoothManager: BluetoothManager, private val callback: BluetoothPeripheralManagerCallback) {
-//    private val context: Context
     private val mainHandler = Handler(Looper.getMainLooper())
-//    private val bluetoothManager: BluetoothManager
-    private val bluetoothAdapter: BluetoothAdapter
-    private val bluetoothLeAdvertiser: BluetoothLeAdvertiser
- //   private val callback: BluetoothPeripheralManagerCallback
+    private val bluetoothAdapter: BluetoothAdapter = bluetoothManager.adapter
+    private val bluetoothLeAdvertiser: BluetoothLeAdvertiser = bluetoothAdapter.bluetoothLeAdvertiser
     val commandQueue: Queue<Runnable> = ConcurrentLinkedQueue()
     private val writeLongCharacteristicTemporaryBytes = HashMap<BluetoothGattCharacteristic, ByteArray>()
     private val writeLongDescriptorTemporaryBytes = HashMap<BluetoothGattDescriptor, ByteArray>()
@@ -638,9 +635,6 @@ class BluetoothPeripheralManager(private val context: Context, private val bluet
      * @param callback an instance of BluetoothPeripheralManagerCallback where the callbacks will be handled
      */
     init {
-        bluetoothAdapter = bluetoothManager.adapter
-        bluetoothLeAdvertiser = bluetoothAdapter.bluetoothLeAdvertiser
-
 
         // Register for broadcasts on BluetoothAdapter state change
         val filter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
