@@ -449,7 +449,6 @@ class BluetoothCentralManager(private val context: Context) {
                     override fun onDisconnectedPeripheral(peripheral: BluetoothPeripheral, status: HciStatus) {
                         it.resumeWithException(ConnectionFailedException(status))
                     }
-
                 })
             } catch (failedException: ConnectionFailedException) {
                 it.resumeWithException(failedException)
@@ -610,21 +609,15 @@ class BluetoothCentralManager(private val context: Context) {
      */
     fun getPeripheral(peripheralAddress: String): BluetoothPeripheral {
         if (!BluetoothAdapter.checkBluetoothAddress(peripheralAddress)) {
-            val message = String.format("%s is not a valid bluetooth address. Make sure all alphabetic characters are uppercase.",
-                peripheralAddress)
-            throw IllegalArgumentException(message)
+            throw IllegalArgumentException(
+                "$peripheralAddress is not a valid bluetooth address. Make sure all alphabetic characters are uppercase."
+            )
         }
-        return if (connectedPeripherals.containsKey(peripheralAddress)) {
-            Objects.requireNonNull(connectedPeripherals[peripheralAddress])!!
-        } else if (unconnectedPeripherals.containsKey(peripheralAddress)) {
-            Objects.requireNonNull(unconnectedPeripherals[peripheralAddress])!!
-        } else if (scannedPeripherals.containsKey(peripheralAddress)) {
-            Objects.requireNonNull(scannedPeripherals[peripheralAddress])!!
-        } else {
-            val peripheral = BluetoothPeripheral(context, bluetoothAdapter.getRemoteDevice(peripheralAddress), internalCallback)
-            scannedPeripherals[peripheralAddress] = peripheral
-            peripheral
-        }
+        return connectedPeripherals[peripheralAddress]
+            ?: unconnectedPeripherals[peripheralAddress]
+            ?: scannedPeripherals.getOrPut(peripheralAddress) {
+                BluetoothPeripheral(context, bluetoothAdapter.getRemoteDevice(peripheralAddress), internalCallback)
+            }
     }
 
     /**
