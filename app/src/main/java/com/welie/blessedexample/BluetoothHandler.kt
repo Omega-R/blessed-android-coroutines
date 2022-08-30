@@ -1,5 +1,6 @@
 package com.welie.blessedexample
 
+import android.bluetooth.BluetoothAdapter
 import android.content.Context
 import com.welie.blessed.*
 import kotlinx.coroutines.*
@@ -22,7 +23,7 @@ internal class BluetoothHandler private constructor(context: Context) {
     val weightChannel = Channel<WeightMeasurement>(UNLIMITED)
 
     private fun handlePeripheral(peripheral: BluetoothPeripheral) {
-        scope.launch(Dispatchers.IO) {
+        scope.launch {
             try {
                 val mtu = peripheral.requestMtu(185)
                 Timber.i("MTU is $mtu")
@@ -43,12 +44,12 @@ internal class BluetoothHandler private constructor(context: Context) {
                 val batteryLevel = peripheral.readCharacteristic(BTS_SERVICE_UUID, BATTERY_LEVEL_CHARACTERISTIC_UUID).asUInt8()
                 Timber.i("Battery level: $batteryLevel")
 
-                // Turn on notifications for Current Time Service and write it if possible
+                // Write Current Time if possible
                 peripheral.getCharacteristic(CTS_SERVICE_UUID, CURRENT_TIME_CHARACTERISTIC_UUID)?.let {
                     // If it has the write property we write the current time
                     if (it.supportsWritingWithResponse()) {
                         // Write the current time unless it is an Omron device
-                        if (!peripheral.name.contains("BLEsmart_")) {
+                        if (!peripheral.name.contains("BLEsmart_", true)) {
                             val parser = BluetoothBytesParser(ByteOrder.LITTLE_ENDIAN)
                             parser.setCurrentTime(Calendar.getInstance())
                             peripheral.writeCharacteristic(it, parser.value, WriteType.WITH_RESPONSE)
@@ -75,7 +76,6 @@ internal class BluetoothHandler private constructor(context: Context) {
         }
     }
 
-
     private suspend fun writeContourClock(peripheral: BluetoothPeripheral) {
         val calendar = Calendar.getInstance()
         val offsetInMinutes = calendar.timeZone.rawOffset / 60000
@@ -101,7 +101,7 @@ internal class BluetoothHandler private constructor(context: Context) {
 
                 // Deal with Omron devices where we can only write currentTime under specific conditions
                 val name = peripheral.name
-                if (name.contains("BLEsmart_")) {
+                if (name.contains("BLEsmart_", true)) {
                     peripheral.getCharacteristic(BLP_SERVICE_UUID, BLP_MEASUREMENT_CHARACTERISTIC_UUID)?.let {
                         val isNotifying = peripheral.isNotifying(it)
                         if (isNotifying) currentTimeCounter++
@@ -208,11 +208,13 @@ internal class BluetoothHandler private constructor(context: Context) {
     }
 
     private fun startScanning() {
-        central.scanForPeripheralsWithServices(supportedServices) { peripheral, scanResult ->
-            Timber.i("Found peripheral '${peripheral.name}' with RSSI ${scanResult.rssi}")
-            central.stopScan()
-            connectPeripheral(peripheral)
-        }
+        central.scanForPeripheralsWithServices(supportedServices,
+            { peripheral, scanResult ->
+                Timber.i("Found peripheral '${peripheral.name}' with RSSI ${scanResult.rssi}")
+                central.stopScan()
+                connectPeripheral(peripheral)
+            },
+            { scanFailure -> Timber.e("scan failed with reason $scanFailure") })
     }
 
     private fun connectPeripheral(peripheral: BluetoothPeripheral) {
@@ -232,7 +234,7 @@ internal class BluetoothHandler private constructor(context: Context) {
     companion object {
         // UUIDs for the Blood Pressure service (BLP)
         private val BLP_SERVICE_UUID: UUID = UUID.fromString("00001810-0000-1000-8000-00805f9b34fb")
-        private val BLP_MEASUREMENT_CHARACTERISTIC_UUID : UUID = UUID.fromString("00002A35-0000-1000-8000-00805f9b34fb")
+        private val BLP_MEASUREMENT_CHARACTERISTIC_UUID: UUID = UUID.fromString("00002A35-0000-1000-8000-00805f9b34fb")
 
         // UUIDs for the Health Thermometer service (HTS)
         private val HTS_SERVICE_UUID = UUID.fromString("00001809-0000-1000-8000-00805f9b34fb")
@@ -295,15 +297,25 @@ internal class BluetoothHandler private constructor(context: Context) {
         central = BluetoothCentralManager(context)
 
         central.observeConnectionState { peripheral, state ->
-            Timber.i("Peripheral ${peripheral.name} has $state")
+            Timber.i("Peripheral '${peripheral.name}' is $state")
             when (state) {
                 ConnectionState.CONNECTED -> handlePeripheral(peripheral)
                 ConnectionState.DISCONNECTED -> scope.launch {
                     delay(15000)
-                    central.autoConnectPeripheral(peripheral)
+
+                    // Check if this peripheral should still be auto connected
+                    if (central.getPeripheral(peripheral.address).getState() == ConnectionState.DISCONNECTED) {
+                        central.autoConnectPeripheral(peripheral)
+                    }
                 }
                 else -> {
                 }
+            }
+        }
+
+        central.observeAdapterState { state ->
+            when (state) {
+                BluetoothAdapter.STATE_ON -> startScanning()
             }
         }
 
