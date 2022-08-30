@@ -84,7 +84,6 @@ class BluetoothCentralManager(private val context: Context) {
     private var currentResultCallback : ((BluetoothPeripheral, ScanResult) -> Unit)? = null
     private var currentScanErrorCallback : ((ScanFailure) -> Unit)? = null
     private var adapterStateCallback: (state: Int) -> Unit = {}
-    private var currentResultCallback: ((BluetoothPeripheral, ScanResult) -> Unit)? = null
 
     private val bluetoothMutableStateFlow: MutableStateFlow<BluetoothState?>
 

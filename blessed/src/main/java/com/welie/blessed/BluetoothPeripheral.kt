@@ -170,7 +170,7 @@ class BluetoothPeripheral internal constructor(
             completedCommand()
         }
 
-        override fun onDescriptorRead(gatt: BluetoothGatt?, descriptor: BluetoothGattDescriptor, status: Int, value: ByteArray) {
+        override fun onDescriptorRead(gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int, value: ByteArray) {
             val gattStatus = GattStatus.fromValue(status)
             if (gattStatus != GattStatus.SUCCESS) {
                 Logger.e(TAG, "reading descriptor <%s> failed for device '%s, status '%s'", descriptor.uuid, address, gattStatus)
@@ -182,18 +182,18 @@ class BluetoothPeripheral internal constructor(
         }
 
         @Deprecated("Deprecated in Java")
-        override fun onDescriptorRead(gatt: BluetoothGatt?, descriptor: BluetoothGattDescriptor, status: Int) {
+        override fun onDescriptorRead(gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int) {
             if (Build.VERSION.SDK_INT < 33) {
                 onDescriptorRead(gatt, descriptor, status, descriptor.value)
             }
         }
 
-        override fun onCharacteristicChanged(gatt: BluetoothGatt?, characteristic: BluetoothGattCharacteristic, value: ByteArray) {
+        override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, value: ByteArray) {
             callbackScope.launch { observeMap[characteristic]?.invoke(value) }
         }
 
         @Deprecated("Deprecated in Java")
-        override fun onCharacteristicChanged(gatt: BluetoothGatt?, characteristic: BluetoothGattCharacteristic) {
+        override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
             if (Build.VERSION.SDK_INT < 33) {
                 onCharacteristicChanged(gatt, characteristic, characteristic.value)
             }
@@ -344,7 +344,7 @@ class BluetoothPeripheral internal constructor(
     private fun discoverServices() {
         discoverJob = scope.launch {
             Logger.d(TAG, "discovering services of '%s'", name)
-            if (bluetoothGatt?.discoverServices() == true)
+            if (bluetoothGatt?.discoverServices() == true) {
                 discoveryStarted = true
             } else {
                 Logger.e(TAG, "discoverServices failed to start")
@@ -496,7 +496,7 @@ class BluetoothPeripheral internal constructor(
                 registerBondingBroadcastReceivers()
                 discoveryStarted = false
                 bluetoothGatt = try {
-                    device.connectGattHelper(context, TAG, false, bluetoothGattCallback, BluetoothDevice.TRANSPORT_LE)
+                    device.connectGattHelper(context, TAG, false, bluetoothGattCallback)
                 } catch (e: SecurityException) {
                     Logger.d(TAG, "exception")
                     null
@@ -525,7 +525,7 @@ class BluetoothPeripheral internal constructor(
                 registerBondingBroadcastReceivers()
                 discoveryStarted = false
                 bluetoothGatt = try {
-                    device.connectGattHelper(context,TAG, true, bluetoothGattCallback, BluetoothDevice.TRANSPORT_LE)
+                    device.connectGattHelper(context,TAG, true, bluetoothGattCallback)
                 } catch (e: SecurityException) {
                     Logger.e(TAG, "connectGatt exception")
                     null
